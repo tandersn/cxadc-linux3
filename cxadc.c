@@ -44,7 +44,7 @@ static int vmux = 2;
 static int level = 16;
 static int tenbit;
 static int tenxfsc;
-
+static int sixdb = 1;
 #define cx_read(reg)         readl(ctd->mmio + ((reg) >> 2))
 #define cx_write(reg, value) writel((value), ctd->mmio + ((reg) >> 2))
 
@@ -309,7 +309,7 @@ static int cxadc_char_open(struct inode *inode, struct file *file)
 	if (level > 31)
 		level = 31;
 	/* control gain also bit 16 */
-	cx_write(MO_AGC_GAIN_ADJ4, (1<<23)|(0<<22)|(0<<21)|(level<<16)|(0xff<<8)|(0x0<<0));
+	cx_write(MO_AGC_GAIN_ADJ4, (sixdb<<23)|(0<<22)|(0<<21)|(level<<16)|(0xff<<8)|(0x0<<0));
 
 	switch (tenxfsc) {
 		case 0 :
@@ -326,13 +326,6 @@ static int cxadc_char_open(struct inode *inode, struct file *file)
 			/* clock speed equal to ~1.4 x crystal speed, unmodified card = 40 mhz */
 	                cx_write(MO_SCONV_REG, 131072*0.715909072483);
                         cx_write(MO_PLL_REG, 0x0165965A); /* 40000000.1406459 */
-                        break;
-		case 3 :
-		        /* RESERVED: will be 40msps with 64mhz crystal */
-                        /* clock speed equal to .625 x crystal speed, unmodified card = 17.875 mhz */
-                        /* under development 0x0CF00000 */
-                        cx_write(MO_SCONV_REG, 131072*1.6);
-                        cx_write(MO_PLL_REG, 0x0CF00000);  /* set PLL to 40 Mhz with 64 Mhz crystal */
                         break;
 		default :
 			/* if someone sets value out of range, default to crystal speed */
@@ -414,7 +407,7 @@ static ssize_t cxadc_char_read(struct file *file, char __user *tgt, size_t count
                         level = 0;
 	             if (level > 31)
                         level = 31;
-	             cx_write(MO_AGC_GAIN_ADJ4, (1<<23)|(0<<22)|(0<<21)|(level<<16)|(0xff<<8)|(0x0<<0));
+	             cx_write(MO_AGC_GAIN_ADJ4, (sixdb<<23)|(0<<22)|(0<<21)|(level<<16)|(0xff<<8)|(0x0<<0));
 
 
 		if (count) {
@@ -447,7 +440,7 @@ static long cxadc_char_ioctl(struct file *file,
 			gain = 31;
 
 		/* control gain also bit 16 */
-		cx_write(MO_AGC_GAIN_ADJ4, (1<<23)|(0<<22)|(0<<21)|(gain<<16)|(0xff<<8)|(0x0<<0));
+		cx_write(MO_AGC_GAIN_ADJ4, (sixdb<<23)|(0<<22)|(0<<21)|(gain<<16)|(0xff<<8)|(0x0<<0));
 	}
 
 	return ret;
@@ -692,13 +685,6 @@ static int cxadc_probe(struct pci_dev *pci_dev,
                         cx_write(MO_SCONV_REG, 131072*0.715909072483);
                         cx_write(MO_PLL_REG, 0x0165965A);  /* set PLL to 40000000.1406459 */
                         break;
-                case 3 :
-                        /* RESERVED: will be 40msps with 64mhz crystal */
-                        /* clock speed equal to .625 x crystal speed, unmodified card = 17.875 mhz */
-                        /* under development 0x0CF00000 */
-                        cx_write(MO_SCONV_REG, 131072*1.6);
-                        cx_write(MO_PLL_REG, 0x0CF00000);  /* set PLL to 40 Mhz with 64 Mhz crystal */
-                        break;
                 default :
                         /* if someone sets value out of range, default to crystal speed */
                         /* clock speed equal to crystal speed, unmodified card = 28.6 mhz */
@@ -716,7 +702,7 @@ static int cxadc_probe(struct pci_dev *pci_dev,
 
 	cx_write(MO_AGC_BACK_VBI, (0<<27)|(0<<26)|(1<<25)|(0x100<<16)|(0xfff<<0));
 	/* control gain also bit 16 */
-	cx_write(MO_AGC_GAIN_ADJ4, (1<<23)|(0<<22)|(0<<21)|(level<<16)|(0xff<<8)|(0x0<<0));
+	cx_write(MO_AGC_GAIN_ADJ4, (sixdb<<23)|(0<<22)|(0<<21)|(level<<16)|(0xff<<8)|(0x0<<0));
 	/* for 'cooked' composite */
 	cx_write(MO_AGC_SYNC_TIP1, (0x1c0<<17)|(0x0<<9)|(0<<7)|(0xf<<0));
 	cx_write(MO_AGC_SYNC_TIP2, (0x20<<17)|(0x0<<9)|(0<<7)|(0xf<<0));
@@ -792,7 +778,7 @@ static void cxadc_remove(struct pci_dev *pci_dev)
 	cx_write(MO_AGC_GAIN_ADJ3,
 		 (0x28<<16)|(0x38<<8)|0xc0);
 	cx_write(MO_AGC_GAIN_ADJ4,
-		 (1<<22)|(1<<21)|(0xa<<16)|(0x2c<<8)|0x34);
+		 (1<<23)|(1<<22)|(1<<21)|(0xa<<16)|(0x2c<<8)|0x34);
 
 	device_destroy(cxadc_class, MKDEV(cxadc_major, ctd->cdev.dev));
 	cdev_del(&ctd->cdev);
@@ -885,6 +871,7 @@ module_param(vmux, int, 0644);
 module_param(level, int, 0644);
 module_param(tenbit, int, 0644);
 module_param(tenxfsc, int, 0644);
+module_param(sixdb, int, 0644);
 
 MODULE_DESCRIPTION("cx2388xx adc driver");
 MODULE_AUTHOR("Hew How Chee");
